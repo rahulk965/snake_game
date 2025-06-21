@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Millipede Cursor UI</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            background: #1c2526 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><path d="M50,0 A50,50 0 0,1 100,50 A50,50 0 0,1 50,100 A50,50 0 0,1 0,50 A50,50 0 0,1 50,0 Z M50,10 A40,40 0 0,1 90,50 A40,40 0 0,1 50,90 A40,40 0 0,1 10,50 A40,40 0 0,1 50,10 Z" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="2"/></svg>') repeat;
+            background-size: 50px 50px;
+            overflow: hidden;
+            cursor: default;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            touch-action: none;
+        }
+
+        .content {
+            color: #ffffff;
+            text-align: center;
+            text-shadow: 0 0 4px rgba(255, 255, 255, 0.5);
+            font-size: 1.2rem;
+            z-index: 1;
+            padding: 10px;
+        }
+
+        .millipede {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        .segment {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #2e0b0b;
+            border: 1px solid #ff4040;
+            border-radius: 2px;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+        }
+
+        .head {
+            width: 12px;
+            height: 10px;
+            border: 2px solid #ff4040;
+            border-radius: 50% 50% 20% 20%;
+            position: relative;
+            background: #2e0b0b;
+            box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+        }
+
+        .tail {
+            width: 6px;
+            height: 6px;
+            border: 1px solid #ff4040;
+            border-radius: 20% 20% 50% 50%;
+            background: #2e0b0b;
+            box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+        }
+
+        .tail-segment {
+            width: 5px;
+            height: 5px;
+            border: 1px solid #ff4040;
+            border-radius: 20% 20% 50% 50%;
+            background: #2e0b0b;
+            box-shadow: 0 0 5px rgba(255, 0, 0, 0.5);
+        }
+
+        .ribs {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .ribs::before,
+        .ribs::after {
+            content: '';
+            position: absolute;
+            width: 2px;
+            height: 8px;
+            background: #ff4040;
+            transform-origin: center;
+            border-radius: 1px;
+        }
+
+        .ribs::before {
+            top: -8px;
+            left: 50%;
+            transform: rotate(45deg);
+        }
+
+        .ribs::after {
+            bottom: -8px;
+            left: 50%;
+            transform: rotate(-45deg);
+        }
+
+        .legs {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+
+        .legs::before,
+        .legs::after {
+            content: '';
+            position: absolute;
+            width: 2px; /* Thicker legs for a scarier look */
+            height: 12px; /* Larger legs */
+            background: #ff4040;
+            transform-origin: center;
+            animation: creep 1s ease-in-out infinite alternate; /* Slower animation for creeping effect */
+            border-radius: 1px;
+            box-shadow: 0 0 3px rgba(255, 0, 0, 0.5); /* Add glow to legs */
+        }
+
+        .legs::before {
+            top: -12px;
+            left: 50%;
+            transform: rotate(60deg);
+        }
+
+        .legs::after {
+            bottom: -12px;
+            left: 50%;
+            transform: rotate(-60deg);
+        }
+
+        @keyframes creep {
+            0% { transform: rotate(55deg); }
+            100% { transform: rotate(65deg); }
+        }
+
+        @media (min-width: 768px) {
+            .content {
+                font-size: 2rem;
+            }
+
+            .segment {
+                width: 10px;
+                height: 10px;
+            }
+
+            .head {
+                width: 15px;
+                height: 12px;
+            }
+
+            .tail {
+                width: 8px;
+                height: 8px;
+            }
+
+            .tail-segment {
+                width: 7px;
+                height: 7px;
+            }
+
+            .ribs::before,
+            .ribs::after {
+                height: 12px;
+            }
+
+            .legs::before,
+            .legs::after {
+                height: 18px; /* Even larger legs on larger screens */
+                width: 3px;
+            }
+
+            body {
+                background-size: 100px 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="content"></div>
+    <div class="millipede" id="millipede"></div>
+
+    <script>
+        const millipede = document.getElementById('millipede');
+        const segments = [];
+        const numBodySegments = 50;
+        const numTailSegments = 10;
+        const numSegments = numBodySegments + numTailSegments;
+        const segmentGap = 5;
+        const baseSpeed = 1; /* Reduced speed for slow movement */
+        const wanderSpeed = 0.8; /* Even slower wandering speed */
+        let targetX = 0, targetY = 0;
+        let isCursorOnScreen = false;
+        let wanderAngle = Math.random() * Math.PI * 2;
+
+        // Detect if the device is mobile
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        // Create millipede segments
+        for (let i = 0; i < numSegments; i++) {
+            const segment = document.createElement('div');
+            if (i === 0) {
+                segment.className = 'segment head';
+            } else if (i >= numBodySegments) {
+                segment.className = 'segment tail-segment';
+                if (i === numSegments - 1) {
+                    segment.className = 'segment tail';
+                }
+            } else {
+                segment.className = 'segment';
+                segment.innerHTML = `
+                    <div class="ribs"></div>
+                    ${i % 2 === 0 ? '<div class="legs"></div>' : ''}
+                `;
+            }
+            millipede.appendChild(segment);
+            segments.push({ x: 0, y: 0, element: segment });
+        }
+
+        // Initialize millipede position
+        segments[0].x = window.innerWidth / 2;
+        segments[0].y = window.innerHeight / 2;
+        targetX = segments[0].x;
+        targetY = segments[0].y;
+
+        // Handle mouse and touch events
+        if (isMobile) {
+            document.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                targetX = touch.clientX;
+                targetY = touch.clientY;
+                isCursorOnScreen = true;
+            }, { passive: false });
+
+            document.addEventListener('touchend', () => {
+                isCursorOnScreen = false;
+            }, { passive: false });
+        } else {
+            document.addEventListener('mousemove', (e) => {
+                targetX = e.clientX;
+                targetY = e.clientY;
+                isCursorOnScreen = true;
+            });
+
+            document.addEventListener('mouseout', (e) => {
+                if (e.relatedTarget === null) {
+                    isCursorOnScreen = false;
+                }
+            });
+
+            document.addEventListener('mouseenter', () => {
+                isCursorOnScreen = true;
+            });
+        }
+
+        function animate() {
+            const head = segments[0];
+            let dxToTarget, dyToTarget, distanceToTarget, angle;
+
+            // Calculate boundaries considering the millipede's size (including larger legs)
+            const headWidth = isMobile ? 12 : 15;
+            const headHeight = isMobile ? 10 : 12;
+            const segmentWidth = isMobile ? 8 : 10;
+            const segmentHeight = isMobile ? 8 : 10;
+            const tailWidth = isMobile ? 5 : 7;
+            const tailHeight = isMobile ? 5 : 7;
+            const legHeight = isMobile ? 12 : 18; // Account for larger legs
+            const margin = legHeight + 10; // Increased margin to account for leg size
+
+            if (isCursorOnScreen) {
+                // Cursor is on screen: follow the cursor or tap position slowly
+                dxToTarget = targetX - head.x;
+                dyToTarget = targetY - head.y;
+                distanceToTarget = Math.sqrt(dxToTarget * dxToTarget + dyToTarget * dyToTarget);
+                angle = Math.atan2(dyToTarget, dxToTarget);
+
+                // Move the head toward the cursor slowly
+                if (distanceToTarget > 1) {
+                    let newX = head.x + Math.cos(angle) * baseSpeed;
+                    let newY = head.y + Math.sin(angle) * baseSpeed;
+
+                    // Constrain head within screen boundaries
+                    newX = Math.max(headWidth / 2 + margin, Math.min(window.innerWidth - headWidth / 2 - margin, newX));
+                    newY = Math.max(headHeight / 2 + margin, Math.min(window.innerHeight - headHeight / 2 - margin, newY));
+
+                    head.x = newX;
+                    head.y = newY;
+                }
+            } else {
+                // Cursor is not on screen: wander around to search for cursor
+                wanderAngle += (Math.random() - 0.5) * 0.2;
+                let newX = head.x + Math.cos(wanderAngle) * wanderSpeed;
+                let newY = head.y + Math.sin(wanderAngle) * wanderSpeed;
+
+                // Constrain head within screen boundaries
+                newX = Math.max(headWidth / 2 + margin, Math.min(window.innerWidth - headWidth / 2 - margin, newX));
+                newY = Math.max(headHeight / 2 + margin, Math.min(window.innerHeight - headHeight / 2 - margin, newY));
+
+                // Adjust angle if hitting boundary
+                if (newX === head.x) {
+                    wanderAngle = Math.PI - wanderAngle;
+                }
+                if (newY === head.y) {
+                    wanderAngle = -wanderAngle;
+                }
+
+                head.x = newX;
+                head.y = newY;
+
+                dxToTarget = Math.cos(wanderAngle);
+                dyToTarget = Math.sin(wanderAngle);
+                angle = wanderAngle;
+            }
+
+            // Update positions of following segments
+            for (let i = 1; i < numSegments; i++) {
+                const prev = segments[i - 1];
+                const curr = segments[i];
+                const dx = prev.x - curr.x;
+                const dy = prev.y - curr.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const segmentAngle = Math.atan2(dy, dx);
+
+                if (distance > segmentGap) {
+                    curr.x = prev.x - Math.cos(segmentAngle) * segmentGap;
+                    curr.y = prev.y - Math.sin(segmentAngle) * segmentGap;
+
+                    // Constrain segments within screen boundaries
+                    const currWidth = i >= numBodySegments ? tailWidth : segmentWidth;
+                    const currHeight = i >= numBodySegments ? tailHeight : segmentHeight;
+                    curr.x = Math.max(currWidth / 2 + margin, Math.min(window.innerWidth - currWidth / 2 - margin, curr.x));
+                    curr.y = Math.max(currHeight / 2 + margin, Math.min(window.innerHeight - currHeight / 2 - margin, curr.y));
+                }
+
+                curr.element.style.transform = `translate(${curr.x}px, ${curr.y}px) rotate(${segmentAngle}rad)`;
+            }
+
+            head.element.style.transform = `translate(${head.x}px, ${head.y}px) rotate(${angle}rad)`;
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
